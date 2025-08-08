@@ -1,0 +1,5 @@
+# Download manually to cache
+common --enable_bzlmod=false
+mkdir -p ~/.cache/bazel-repo-cache
+curl -L -o ~/.cache/bazel-repo-cache/rules_python-0.23.1.tar.gz \
+     https://github.com/bazelbuild/rules_python/archive/refs/tags/0.23.1.tar.gz

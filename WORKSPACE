@@ -1,61 +1,55 @@
-workspace(name = "test_bazel_repo")
+workspace(name = "flask_docker_example")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# Bazel Skylib
+# 1. First load bazel_skylib
 http_archive(
     name = "bazel_skylib",
-    sha256 = "060426b186670beede4104095324a72bd7494d8b4e785bf0d84a612978285908",
-    strip_prefix = "bazel-skylib-1.4.1",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.4.1.tar.gz"],
+    sha256 = "cd55a062e763b9349921f0f5db8c3933288dc8ba4f76dd9416aac68acee3cb94",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.5.0/bazel-skylib-1.5.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.5.0/bazel-skylib-1.5.0.tar.gz",
+    ],
 )
 
-# Bazel Rules Docker
+# 2. Then load rules_python
+http_archive(
+    name = "rules_python",
+    sha256 = "84aec9e21cc56fbc7f1335035a71c850d1b9b5cc6ff497306f84cced9a769841",
+    strip_prefix = "rules_python-0.23.1",
+    url = "https://github.com/bazelbuild/rules_python/archive/refs/tags/0.23.1.tar.gz",
+)
+
+load("@rules_python//python:repositories.bzl", "python_register_toolchains")
+python_register_toolchains(
+    name = "python3",
+    python_version = "3.10",
+)
+
+# 3. Load pip dependencies
+load("@rules_python//python:pip.bzl", "pip_install")
+
+pip_install(
+    name = "my_deps",
+    requirements = "//:requirements.txt",
+)
+
+# 4. Finally load rules_docker
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "27d53c1d646fc9537a70427ad7b034734d08a9c38924cc6357cc973fed300820",
-    strip_prefix = "rules_docker-0.24.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/archive/refs/tags/v0.24.0.tar.gz"],
+    sha256 = "1f4e59843b61981a96835dc4ac377ad4da9f8c334ebe5e0bb3f58f80c09735f4",
+    strip_prefix = "rules_docker-0.26.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.26.0/rules_docker-v0.26.0.tar.gz"],
 )
 
-# Bazel Skylib (required for various rules)
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-http_archive(
-    name = "bazel_skylib",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.4.2.tar.gz"],
-    strip_prefix = "bazel-skylib-1.4.2",
-    sha256 = "2f6bfb47b65ed17ecde73d5352e4cb3fd66ef8b7284e28e601a9c3a4b8e0b71f",
+load(
+    "@io_bazel_rules_docker//repositories:repositories.bzl",
+    container_repositories = "repositories",
 )
-
-# rules_go
-http_archive(
-    name = "io_bazel_rules_go",
-    urls = ["https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.tar.gz"],
-    sha256 = "2c27a1c45f610622e028ee95b705265c205b27caa6c6e2aa373d58b108d680e5",
-)
-
-http_archive(
-    name = "bazel_gazelle",
-    urls = ["https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.32.0/bazel-gazelle-v0.32.0.tar.gz"],
-    sha256 = "0fcf7d472edb6b2270a7c87a93c5df497b91e7b12f0a6076f0861bdf0b747ce9",
-)
-
-load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies", "go_register_toolchains")
-
-go_rules_dependencies()
-go_register_toolchains()
-
-
-# ✅ Correct usage for v0.24.0
-load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
 container_repositories()
 
-load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
+load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+container_deps()
 
-container_pull(
-    name = "python39_slim",
-    registry = "index.docker.io",
-    repository = "library/python",
-    tag = "3.9-slim",
-)
+# Load container dependencies
+load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
