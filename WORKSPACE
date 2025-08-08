@@ -1,33 +1,21 @@
 workspace(name = "test_bazel_repo")
 
+# WORKSPACE
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# Bazel Skylib
-http_archive(
-    name = "bazel_skylib",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.4.2.tar.gz"],
-    strip_prefix = "bazel-skylib-1.4.2",
-    sha256 = "de9d2cedea7103d20c93a5cc7763099728206bd5088342d0009315913a592cc0",
-)
+# Keep bazel_skylib & rules_python as-is
 
-# Bazel Rules Docker
-http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "27d53c1d646fc9537a70427ad7b034734d08a9c38924cc6357cc973fed300820",
-    strip_prefix = "rules_docker-0.24.0",
-    urls = ["https://github.com/bazelbuild/rules_docker/archive/refs/tags/v0.24.0.tar.gz"],
-)
+# rules_oci (example uses the latest release snippet from the page)
 
-# Python Rules
 http_archive(
     name = "rules_python",
-    sha256 = "9d04041ac92a0985e344235f5d946f71ac543f1b1565f2cdbc9a2aaee8adf55b",
-    strip_prefix = "rules_python-0.26.0",
-    url = "https://github.com/bazelbuild/rules_python/releases/download/0.26.0/rules_python-0.26.0.tar.gz",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.30.0/rules_python-0.30.0.tar.gz",
+    sha256 = "3b8b4cdc991bc9def8833d118e4c850f1b7498b3d65d5698eea92c3528b8cf2c",  # replace with real sha256
+    strip_prefix = "rules_python-0.30.0",
 )
 
 load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
-
 py_repositories()
 
 python_register_toolchains(
@@ -35,15 +23,33 @@ python_register_toolchains(
     python_version = "3.9",
 )
 
-# ✅ Correct usage for v0.24.0
-load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
-container_repositories()
-
-load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
-
-container_pull(
-    name = "python39_slim",
-    registry = "index.docker.io",
-    repository = "library/python",
-    tag = "3.9-slim",
+http_archive(
+    name = "rules_oci",
+    sha256 = "5994ec0e8df92c319ef5da5e1f9b514628ceb8fc5824b4234f2fe635abb8cc2e",
+    strip_prefix = "rules_oci-2.2.6",
+    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v2.2.6/rules_oci-v2.2.6.tar.gz",
 )
+
+load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
+rules_oci_dependencies()
+
+load("@rules_oci//oci:repositories.bzl", "oci_register_toolchains")
+oci_register_toolchains(name = "oci")
+
+
+# Pull your base image (replaces container_pull)
+load("@rules_oci//oci:pull.bzl", "oci_pull")
+oci_pull(
+    name = "python39_slim",
+    image = "docker.io/library/python",
+    tag = "3.9-slim",
+    # python images are multi-arch; set the platform you build on/run with:
+    platforms = ["linux/amd64"],
+)
+
+http_archive(
+    name = "rules_pkg",
+    url = "https://github.com/bazelbuild/rules_pkg/releases/download/0.10.1/rules_pkg-0.10.1.tar.gz",
+    sha256 = "d250924a2ecc5176808fc4c25d5cf5e9e79e6346d79d5ab1c493e289e722d1d0",
+)
+
