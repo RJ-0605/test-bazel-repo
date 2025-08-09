@@ -45,6 +45,7 @@ source venv/bin/activate
 bazel build //:main_simple
 ```
 
+
 **Run the application:**
 ```bash
 bazel run //:main_simple
