@@ -25,5 +25,11 @@ pip install -r requirements.txt
 
 echo "Virtual environment setup complete!"
 echo "To activate: source venv/bin/activate"
-echo "To build with Bazel: bazel build //:main"
-echo "To build container: bazel build //:app_image"
+
+echo "Clean the Bazel cache and remove all build outputs: bazel clean --expunge"
+echo "Build the main binary with Bazel: bazel build //:main"
+echo "Synchronize external dependencies: bazel sync"
+echo "Load the Docker image into your local environment: bazel run //:app_image.load"
+echo "Run the container from the image: docker run --rm app_image:latest"
+echo "List all local Docker images: docker image ls"
+
