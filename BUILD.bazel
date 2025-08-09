@@ -1,6 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
-load("@rules_pkg//:pkg.bzl", "pkg_tar")  # add rules_pkg in WORKSPACE if you haven't
+load("@io_bazel_rules_docker//contrib:dockerfile_build.bzl", "dockerfile_image")
+load("@io_bazel_rules_docker//container:container.bzl", "container_load")
 
 py_binary(
     name = "main",
@@ -14,40 +14,10 @@ py_binary(
     python_version = "PY3",
 )
 
-# Package the script(s) as a filesystem layer.
-# This puts main_simple.py at /main_simple.py inside the image.
-pkg_tar(
-    name = "app_layer",
-    srcs = ["main_simple.py"],
-    mode = "0644",
-    package_dir = "/",
-)
 
-# Build the OCI image using your pulled python:3.9-slim base
-oci_image(
-    name = "app_image",
-    base = "@python39_slim",             # from oci_pull in WORKSPACE
-    entrypoint = ["python", "/main_simple.py"],
-    tars = [":app_layer"],
-)
-
-# If you want a second image identical to app_image (like your app_image_simple)
-oci_image(
-    name = "app_image_simple",
-    base = "@python39_slim",
-    entrypoint = ["python", "/main_simple.py"],
-    tars = [":app_layer"],
-)
-
-# Load into local Docker/Podman: bazel run //:app_image.load
-oci_load(
-    name = "app_image.load",
-    image = ":app_image",
-    repo_tags = ["app_image:latest"],
-)
-
-oci_load(
-    name = "app_image_simple.load",
-    image = ":app_image_simple",
-    repo_tags = ["app_image_simple:latest"],
+# Load the built image into your local Docker
+container_load(
+    name = "app_image_dockerfile.load",
+    image = ":app_image_dockerfile",
+    repo_tags = ["app_image_dockerfile:latest"],
 )

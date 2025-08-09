@@ -5,6 +5,14 @@ workspace(name = "test_bazel_repo")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # Keep bazel_skylib & rules_python as-is
+http_archive(
+    name = "bazel_skylib",
+    urls = ["https://github.com/bazelbuild/bazel-skylib/archive/refs/tags/1.4.2.tar.gz"],
+    strip_prefix = "bazel-skylib-1.4.2",
+    sha256 = "de9d2cedea7103d20c93a5cc7763099728206bd5088342d0009315913a592cc0",
+)
+load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
+bazel_skylib_workspace()
 
 # rules_oci (example uses the latest release snippet from the page)
 
@@ -14,7 +22,6 @@ http_archive(
     sha256 = "3b8b4cdc991bc9def8833d118e4c850f1b7498b3d65d5698eea92c3528b8cf2c",  # replace with real sha256
     strip_prefix = "rules_python-0.30.0",
 )
-
 load("@rules_python//python:repositories.bzl", "py_repositories", "python_register_toolchains")
 py_repositories()
 
@@ -23,29 +30,35 @@ python_register_toolchains(
     python_version = "3.9",
 )
 
+
+
+# --- START: ADD THIS for Dockerfile-based image builds ---
+# rules_docker (wraps `docker build` via Bazel)
 http_archive(
-    name = "rules_oci",
-    sha256 = "5994ec0e8df92c319ef5da5e1f9b514628ceb8fc5824b4234f2fe635abb8cc2e",
-    strip_prefix = "rules_oci-2.2.6",
-    url = "https://github.com/bazel-contrib/rules_oci/releases/download/v2.2.6/rules_oci-v2.2.6.tar.gz",
+    name = "io_bazel_rules_docker",
+    sha256 = "85ffff62a4c22a74dbd98d05da6cf40f497344b3dbf1e1ab0a37ab2a1a6ca014",
+    strip_prefix = "rules_docker-0.23.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.23.0/rules_docker-v0.23.0.tar.gz"],
 )
 
-load("@rules_oci//oci:dependencies.bzl", "rules_oci_dependencies")
-rules_oci_dependencies()
+load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
+container_repositories()
 
-load("@rules_oci//oci:repositories.bzl", "oci_register_toolchains")
-oci_register_toolchains(name = "oci")
+load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+container_deps()
 
 
-# Pull your base image (replaces container_pull)
-load("@rules_oci//oci:pull.bzl", "oci_pull")
-oci_pull(
-    name = "python39_slim",
-    image = "docker.io/library/python",
-    tag = "3.9-slim",
-    # python images are multi-arch; set the platform you build on/run with:
-    platforms = ["linux/amd64"],
+load("@io_bazel_rules_docker//contrib:dockerfile_build.bzl", "dockerfile_image")
+
+dockerfile_image(
+    name = "app_image_dockerfile_ext",
+    dockerfile = "//:Dockerfile",
 )
+
+
+
+# --- END: ADD THIS ---
+
 
 http_archive(
     name = "rules_pkg",
