@@ -45,6 +45,15 @@ jobs:
       - name: List images
         run: docker image ls
 
+      - name: Do the thing (verbose)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "Building…"
+          TAR="$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar | head -n 1)"
+          echo "TAR=$TAR"
+          docker load -i "$TAR"
+
       - name: Rename the image
         run: | 
          echo "Capture the Image ID of the most recently loaded image"
