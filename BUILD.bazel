@@ -8,11 +8,11 @@ py_binary(
     python_version = "PY3",
 )
 
-py_binary(
-    name = "main_simple",
-    srcs = ["main_simple.py"],
-    python_version = "PY3",
-)
+# py_binary(
+#     name = "main_simple",
+#     srcs = ["main_simple.py"],
+#     python_version = "PY3",
+# )
 
 
 # Load the built image into your local Docker

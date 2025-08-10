@@ -1,0 +1,114 @@
+name: PR Build (Bazelisk)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BAZELISK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # better cache keys / cquery if needed
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: bazel-${{ runner.os }}-${{ hashFiles('**/*.bzl','**/WORKSPACE','**/BUILD*','**/MODULE.bazel') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+
+      - name: Sync external deps
+        run: bazel sync
+      
+      - name: Clean up Docker images
+        run: docker images -q | xargs -r docker rmi -f
+
+      - name: Build OCI image 
+        run: bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar
+
+      - name: Load docker images
+        run: bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar
+
+      - name: List images
+        run: docker image ls
+
+      - name: Load tar into Docker (correct paths, verbose)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          TAR_REL="$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar | head -n 1)"
+          EXECROOT="$(bazel info execution_root)"
+          TAR="$EXECROOT/$TAR_REL"
+          echo "EXECROOT=$EXECROOT"
+          echo "TAR_REL=$TAR_REL"
+          echo "TAR=$TAR"
+          test -f "$TAR" || { echo "Tar not found"; find "$EXECROOT/external/app_image_dockerfile_ext" -maxdepth 5 -type f -name '*.tar' -ls; exit 1; }
+          docker load -i "$TAR" || true
+          docker image ls 
+
+      - name: Rename the image
+        run: | 
+         echo "Capture the Image ID of the most recently loaded image"
+         IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
+         docker tag "$IMAGE_ID" app_image_dockerfile:latest
+         echo "Image tagged"
+
+      - name:  Start container (detached) [ Smoke Tests ]
+        run: |
+          docker run --name app -d -p 5000:5000 app_image_dockerfile:latest
+
+      - name: Wait for readiness & smoke test
+        shell: bash
+        run: |
+            # wait up to 30s for the server to come up
+            for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:5000/ > /dev/null; then
+                echo "✅ App is up"; break
+            fi
+            sleep 1
+            if [ $i -eq 30 ]; then
+                echo "❌ App failed to start in time"
+                docker logs app || true
+                exit 1
+            fi
+            done
+            # assert response body (optional)
+            BODY=$(curl -s http://127.0.0.1:5000/)
+            echo "Response: $BODY"
+            [[ "$BODY" == "Hello from Bazel container!" ]]
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f app || true
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: always() # Run even if previous jobs fail
+    needs: [build]
+
+    steps:
+      - name: Remove test container
+        run: docker rm -f app || true
+
+      - name: Remove dangling images
+        run: docker image prune -f
+
+      - name: Remove all unused images (optional, more aggressive)
+        run: docker images -q | xargs -r docker rmi -f
+
+      - name: Remove unused volumes
+        run: docker volume prune -f
+
