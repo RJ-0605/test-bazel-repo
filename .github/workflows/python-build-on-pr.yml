@@ -39,6 +39,9 @@ jobs:
       - name: Build OCI image 
         run: bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar
 
+      - name: List images
+        run: docker image ls
+
       - name: Rename the image
         run: | 
          echo "Capture the Image ID of the most recently loaded image"
@@ -51,13 +54,13 @@ jobs:
     needs: build
 
     steps:
-        - name: Start container (detached)
-          run: |
-            docker run --name app -d -p 5000:5000 app_image_dockerfile:latest
+      - name: Start container (detached)
+        run: |
+          docker run --name app -d -p 5000:5000 app_image_dockerfile:latest
 
-        - name: Wait for readiness & smoke test
-          shell: bash
-          run: |
+      - name: Wait for readiness & smoke test
+        shell: bash
+        run: |
             # wait up to 30s for the server to come up
             for i in {1..30}; do
             if curl -sSf http://127.0.0.1:5000/ > /dev/null; then
@@ -75,9 +78,9 @@ jobs:
             echo "Response: $BODY"
             [[ "$BODY" == "Hello from Bazel container!" ]]
 
-        - name: Stop container
-          if: always()
-          run: docker rm -f app || true
+      - name: Stop container
+        if: always()
+        run: docker rm -f app || true
 
   cleanup:
     runs-on: ubuntu-latest
@@ -85,17 +88,17 @@ jobs:
     needs: [build, smoke_test]
 
     steps:
-        - name: Remove test container
-          run: docker rm -f app || true
+      - name: Remove test container
+        run: docker rm -f app || true
 
-        - name: Remove dangling images
-          run: docker image prune -f
+      - name: Remove dangling images
+        run: docker image prune -f
 
-        - name: Remove all unused images (optional, more aggressive)
-          run: docker images -q | xargs -r docker rmi -f
+      - name: Remove all unused images (optional, more aggressive)
+        run: docker images -q | xargs -r docker rmi -f
 
-        - name: Remove unused volumes
-          run: docker volume prune -f
+      - name: Remove unused volumes
+        run: docker volume prune -f
 
 
 
