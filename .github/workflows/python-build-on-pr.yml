@@ -39,6 +39,9 @@ jobs:
       - name: Build OCI image 
         run: bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar
 
+      - name: Load docker images
+        run: bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar
+
       - name: List images
         run: docker image ls
 
