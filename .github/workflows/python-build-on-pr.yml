@@ -1,0 +1,48 @@
+name: PR Build (Bazelisk)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BAZELISK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # better cache keys / cquery if needed
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Cache Bazel
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/bazel
+            ~/.cache/bazelisk
+          key: bazel-${{ runner.os }}-${{ hashFiles('**/*.bzl','**/WORKSPACE','**/BUILD*','**/MODULE.bazel') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+
+      - name: Sync external deps
+        run: bazel sync
+
+      # Build everything (or replace with specific targets)
+      - name: Bazel build
+        run: bazel build //...
+
+      # If you're using rules_oci and want to validate the image builds on PRs:
+      - name: Build OCI image (optional)
+        run: bazel build //:app_image
+
+      # Optionally load the image and run a quick smoke test (uncomment if you need it)
+      # - name: Load image into Docker
+      #   run: bazel run //:app_image.load
+      # - name: Smoke test container
+      #   run: docker run --rm -p 5000:5000 app_image:latest python -V
