@@ -97,7 +97,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     if: always() # Run even if previous jobs fail
-    needs: [build, smoke_test]
+    needs: [build]
 
     steps:
       - name: Remove test container
