@@ -30,23 +30,14 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
-      - name: Setup python environment for building flask app
-        run: |
-          chmod +x setup_env.sh
-          ./setup_env.sh
-
       - name: Sync external deps
         run: bazel sync
+      
+      - name: Clean up Docker images
+        run: docker images -q | xargs -r docker rmi -f
 
-      # If you're using rules_oci and want to validate the image builds on PRs:
-      - name: Build OCI image (optional)
+      - name: Build OCI image 
         run: bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar
-
-      - name: Load image into Docker
-        run: |
-          TAR='$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar)'
-          docker load -i "$TAR" 
-          docker images | head
 
       - name: Rename the image
         run: | 
@@ -62,7 +53,7 @@ jobs:
     steps:
         - name: Start container (detached)
           run: |
-            docker run --rm -p 5000:5000 app_image_dockerfile:latest
+            docker run --name app -d -p 5000:5000 app_image_dockerfile:latest
 
         - name: Wait for readiness & smoke test
           shell: bash
@@ -87,6 +78,25 @@ jobs:
         - name: Stop container
           if: always()
           run: docker rm -f app || true
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: always() # Run even if previous jobs fail
+    needs: [build, smoke_test]
+
+    steps:
+        - name: Remove test container
+          run: docker rm -f app || true
+
+        - name: Remove dangling images
+          run: docker image prune -f
+
+        - name: Remove all unused images (optional, more aggressive)
+          run: docker images -q | xargs -r docker rmi -f
+
+        - name: Remove unused volumes
+          run: docker volume prune -f
+
 
 
       # Optionally load the image and run a quick smoke test (uncomment if you need it)
