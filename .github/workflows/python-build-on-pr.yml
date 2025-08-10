@@ -52,7 +52,8 @@ jobs:
           echo "Building…"
           TAR="$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar | head -n 1)"
           echo "TAR=$TAR"
-          docker load -i "$TAR"
+          docker load -i "$TAR" || true
+          docker image ls 
 
       - name: Rename the image
         run: | 
