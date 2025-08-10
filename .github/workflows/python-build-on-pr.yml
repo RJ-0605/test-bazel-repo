@@ -30,16 +30,64 @@ jobs:
           restore-keys: |
             bazel-${{ runner.os }}-
 
+      - name: Setup python environment for building flask app
+        run: |
+          chmod +x setup_env.sh
+          /.setup_env.sh
+
       - name: Sync external deps
         run: bazel sync
 
-      # Build everything (or replace with specific targets)
-      - name: Bazel build
-        run: bazel build //...
-
       # If you're using rules_oci and want to validate the image builds on PRs:
       - name: Build OCI image (optional)
-        run: bazel build //:app_image
+        run: bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar
+
+      - name: Load image into Docker
+        run: |
+          TAR='$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar)'
+          docker load -i "$TAR" 
+          docker images | head
+
+      - name: Rename the image
+        run: | 
+         echo "Capture the Image ID of the most recently loaded image"
+         IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
+         docker tag "$IMAGE_ID" app_image_dockerfile:latest
+         echo "Image tagged"
+
+  smoke_test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+        - name: Start container (detached)
+          run: |
+            docker run --rm -p 5000:5000 app_image_dockerfile:latest
+
+        - name: Wait for readiness & smoke test
+          shell: bash
+          run: |
+            # wait up to 30s for the server to come up
+            for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:5000/ > /dev/null; then
+                echo "✅ App is up"; break
+            fi
+            sleep 1
+            if [ $i -eq 30 ]; then
+                echo "❌ App failed to start in time"
+                docker logs app || true
+                exit 1
+            fi
+            done
+            # assert response body (optional)
+            BODY=$(curl -s http://127.0.0.1:5000/)
+            echo "Response: $BODY"
+            [[ "$BODY" == "Hello from Bazel container!" ]]
+
+        - name: Stop container
+          if: always()
+          run: docker rm -f app || true
+
 
       # Optionally load the image and run a quick smoke test (uncomment if you need it)
       # - name: Load image into Docker

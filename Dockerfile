@@ -5,6 +5,7 @@ WORKDIR /app
 # RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the app code (adjust paths to your repo layout)
-COPY main_simple.py /app/main_simple.py
+COPY main.py /app/main.py
+EXPOSE 5000
 
 ENTRYPOINT ["python", "/app/main_simple.py"]

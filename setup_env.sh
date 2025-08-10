@@ -29,7 +29,7 @@ echo "To activate: source venv/bin/activate"
 echo "Clean the Bazel cache and remove all build outputs: bazel clean --expunge"
 echo "Build the main binary with Bazel: bazel build //:main"
 echo "Synchronize external dependencies: bazel sync"
-echo "Load the Docker image into your local environment: bazel query '@app_image_dockerfile_ext//...:*"
+echo "List Dockerfile-based image targets from external repo: bazel query '@app_image_dockerfile_ext//...:*"
 
 # results were as below:
 # @app_image_dockerfile_ext//image:BUILD
@@ -37,11 +37,14 @@ echo "Load the Docker image into your local environment: bazel query '@app_image
 
 # query shows the external repo created exactly one buildable target => @app_image_dockerfile_ext//image:dockerfile_image.tar
 
-# build that label 
+# Build the image tar produced by dockerfile_image
+echo "Build the Docker image tar with Bazel:"
 echo "bazel build @app_image_dockerfile_ext//image:dockerfile_image.tar"
-# Load it into Docker:
-echo  "TAR='$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar)' "
-echo " docker load -i "$TAR" "
+
+# Resolve the tar path and load it into Docker
+echo "Resolve the built tar path:"
+echo  " TAR='$(bazel cquery --output=files @app_image_dockerfile_ext//image:dockerfile_image.tar)'  "
+echo " Load the image tar into Docker: docker load -i "$TAR" "
 
 # if no tag printed, find the IMAGE ID:
 echo "docker images | head "
@@ -53,5 +56,5 @@ echo "docker run --rm app_image_dockerfile:latest"
 
 echo "List all local Docker images: docker image ls"
 
-
+echo  "✅ Script is done "
 
