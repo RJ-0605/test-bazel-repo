@@ -112,10 +112,3 @@ jobs:
       - name: Remove unused volumes
         run: docker volume prune -f
 
-
-
-      # Optionally load the image and run a quick smoke test (uncomment if you need it)
-      # - name: Load image into Docker
-      #   run: bazel run //:app_image.load
-      # - name: Smoke test container
-      #   run: docker run --rm -p 5000:5000 app_image:latest python -V
