@@ -33,7 +33,7 @@ jobs:
       - name: Setup python environment for building flask app
         run: |
           chmod +x setup_env.sh
-          /.setup_env.sh
+          ./setup_env.sh
 
       - name: Sync external deps
         run: bazel sync
