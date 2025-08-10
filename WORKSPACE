@@ -1,4 +1,4 @@
-workspace(name = "test_bazel_repo")
+workspace(name = "Japa-crm-ci-bazel")
 
 # WORKSPACE
 
